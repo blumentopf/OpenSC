@@ -28,6 +28,11 @@
 #include "asn1.h"
 #include "cardctl.h"
 
+#define GEMSAFEV1_ALG_REF_FREEFORM	0x12
+#define GEMSAFEV3_ALG_REF_FREEFORM	0x02
+#define GEMSAFEV3_ALG_REF_SHA1		0x12
+#define GEMSAFEV3_ALG_REF_SHA256	0x42
+
 static struct sc_card_operations gemsafe_ops;
 static struct sc_card_operations *iso_ops = NULL;
 
@@ -37,6 +42,8 @@ static struct sc_card_driver gemsafe_drv = {
 	&gemsafe_ops,
 	NULL, 0, NULL
 };
+
+static u8 gemsafe_key_ref;
 
 /* Known ATRs */
 static struct sc_atr_table gemsafe_atrs[] = {
@@ -366,13 +373,17 @@ static u8 gemsafe_flags2algref(struct sc_card *card, const struct sc_security_en
 	if (env->operation == SC_SEC_OPERATION_SIGN) {
 		if (env->algorithm_flags & SC_ALGORITHM_RSA_PAD_PKCS1)
 			ret = (card->type == SC_CARD_TYPE_GEMSAFEV1_PTEID ||
-			       card->type == SC_CARD_TYPE_GEMSAFEV1_SEEID) ? 0x02 : 0x12;
+			       card->type == SC_CARD_TYPE_GEMSAFEV1_SEEID) ?
+			      GEMSAFEV3_ALG_REF_FREEFORM :
+			      GEMSAFEV1_ALG_REF_FREEFORM;
 		else if (env->algorithm_flags & SC_ALGORITHM_RSA_PAD_ISO9796)
 			ret = 0x11;
 	} else if (env->operation == SC_SEC_OPERATION_DECIPHER) {
 		if (env->algorithm_flags & SC_ALGORITHM_RSA_PAD_PKCS1)
 			ret = (card->type == SC_CARD_TYPE_GEMSAFEV1_PTEID ||
-			       card->type == SC_CARD_TYPE_GEMSAFEV1_SEEID) ? 0x02 : 0x12;
+			       card->type == SC_CARD_TYPE_GEMSAFEV1_SEEID) ?
+			      GEMSAFEV3_ALG_REF_FREEFORM :
+			      GEMSAFEV1_ALG_REF_FREEFORM;
 	}
 
 	return ret;
@@ -415,6 +426,9 @@ static int gemsafe_set_security_env(struct sc_card *card,
 	if (!(se_env.flags & SC_SEC_ENV_ALG_REF_PRESENT))
 		sc_debug(ctx, SC_LOG_DEBUG_NORMAL, "unknown algorithm flags '%x'\n", se_env.algorithm_flags);
 
+	/* key_ref is needed by gemsafe_compute_signature() for SHA256 */
+	gemsafe_key_ref = env->key_ref[0];
+
 	se_env.flags &= ~SC_SEC_ENV_FILE_REF_PRESENT;
 	return iso_ops->set_security_env(card, &se_env, se_num);
 }
@@ -426,13 +440,47 @@ static int gemsafe_compute_signature(struct sc_card *card, const u8 * data,
 	struct sc_apdu apdu;
 	u8 rbuf[SC_MAX_APDU_BUFFER_SIZE];
 	u8 sbuf[SC_MAX_APDU_BUFFER_SIZE];
+	u8 stripped_data[32 + 19]; /* SHA256 + header */
+	size_t stripped_len;
+	unsigned int algo;
+	sc_security_env_t senv;
 	sc_context_t *ctx = card->ctx;
 
 	SC_FUNC_CALLED(ctx, SC_LOG_DEBUG_VERBOSE);
 
-	if (data_len > 36) {
+	/* the card can sign 36 bytes of free form data or a SHA256 hash */
+	if (data_len > 36 && data_len != 32 + 19) {
 		sc_debug(ctx, SC_LOG_DEBUG_NORMAL, "error: input data too long: %lu bytes\n", data_len);
 		return SC_ERROR_INVALID_ARGUMENTS;
+	}
+
+	/* a SHA256 hash must be stripped of its header, the card will prepend
+	 * it again before signing. it is instructed to do so by sending a
+	 * Manage Security Environment command with Cryptographic Mechanism
+	 * Reference 0x42 */
+	if (data_len == 32 + 19) {
+		sc_log(ctx, "Strip SHA256 header\n");
+		r = sc_pkcs1_strip_digest_info_prefix(&algo, data, data_len,
+						      stripped_data,
+						      &stripped_len);
+		if (r != SC_SUCCESS || algo != SC_ALGORITHM_RSA_HASH_SHA256) {
+			sc_log(ctx, "SHA256 header not found\n");
+			return SC_ERROR_INVALID_ARGUMENTS;
+		}
+		data = stripped_data;
+		data_len = stripped_len;
+
+		sc_log(ctx, "Send 'Manage Security Environment' command\n");
+		memset(&senv, 0, sizeof(senv));
+		senv.operation = SC_SEC_OPERATION_SIGN;
+		senv.flags |= SC_SEC_ENV_ALG_REF_PRESENT;
+		senv.algorithm_ref = GEMSAFEV3_ALG_REF_SHA256;
+		senv.flags |= SC_SEC_ENV_KEY_REF_PRESENT;
+		senv.key_ref[0] = gemsafe_key_ref;
+		senv.key_ref_len = 1;
+		r = gemsafe_set_security_env(card, &senv, 0);
+		SC_TEST_RET(ctx, SC_LOG_DEBUG_NORMAL, r,
+			    "Manage Security Environment command failed");
 	}
 
 	/* the Portuguese eID card requires a two-phase exchange */
