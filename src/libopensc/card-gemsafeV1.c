@@ -45,17 +45,18 @@ static struct sc_card_driver gemsafe_drv = {
 
 /* Known ATRs */
 static struct sc_atr_table gemsafe_atrs[] = {
-	/* standard version */
-    {"3B:7B:94:00:00:80:65:B0:83:01:01:74:83:00:90:00", NULL, NULL, SC_CARD_TYPE_GEMSAFEV1_GENERIC, 0, NULL},
-    {"3B:6B:00:00:80:65:B0:83:01:01:74:83:00:90:00", NULL, NULL, SC_CARD_TYPE_GEMSAFEV1_GENERIC, 0, NULL},
+    /* standard version */
+    {"3b:7b:00:00:00:80:65:b0:83:00:00:00:83:00:90:00",
+     "ff:ff:00:ff:ff:ff:ff:ff:ff:00:00:00:ff:ff:ff:ff", NULL, SC_CARD_TYPE_GEMSAFEV1_GENERIC, 0, NULL},
     /* GemSafeXpresso 32K */
-    {"3b:6d:00:00:80:31:80:65:b0:83:01:02:90:83:00:90:00", NULL, NULL, SC_CARD_TYPE_GEMSAFEV1_GENERIC, 0, NULL},
+    {"3b:6d:00:00:80:31:80:65:b0:83:00:00:00:83:00:90:00",
+     "ff:ff:ff:ff:ff:ff:ff:ff:ff:ff:00:00:00:ff:ff:ff:ff", NULL, SC_CARD_TYPE_GEMSAFEV1_GENERIC, 0, NULL},
     /* fips 140 version */
-    {"3B:6B:00:00:80:65:B0:83:01:03:74:83:00:90:00", NULL, NULL, SC_CARD_TYPE_GEMSAFEV1_GENERIC, 0, NULL},
+    {"3b:6b:00:00:80:65:b0:83:00:00:00:83:00:90:00",
+     "ff:ff:ff:ff:ff:ff:ff:ff:00:00:00:ff:ff:ff:ff", NULL, SC_CARD_TYPE_GEMSAFEV1_GENERIC, 0, NULL},
     /* Undefined */
-    {"3B:7A:94:00:00:80:65:A2:01:01:01:3D:72:D6:43", NULL, NULL, SC_CARD_TYPE_GEMSAFEV1_GENERIC, 0, NULL},
-    {"3B:7D:94:00:00:80:31:80:65:B0:83:01:01:90:83:00:90:00", NULL, NULL, SC_CARD_TYPE_GEMSAFEV1_GENERIC, 0, NULL},
-    {"3B:7D:96:00:00:80:31:80:65:B0:83:11:48:C8:83:00:90:00", NULL, NULL, SC_CARD_TYPE_GEMSAFEV1_GENERIC, 0, NULL},
+    {"3b:7a:00:00:00:80:65:a2:00:00:00:00:72:d6:00",
+     "ff:ff:00:ff:ff:ff:ff:ff:00:00:00:00:ff:ff:00", NULL, SC_CARD_TYPE_GEMSAFEV1_GENERIC, 0, NULL},
     /* Portuguese eID cards */
     {"3B:7D:95:00:00:80:31:80:65:B0:83:11:C0:A9:83:00", NULL, NULL, SC_CARD_TYPE_GEMSAFEV1_PTEID, 0, NULL},
     {"3B:7D:95:00:00:80:31:80:65:B0:83:11:C0:A9:83:00:90:00", NULL, NULL, SC_CARD_TYPE_GEMSAFEV1_PTEID, 0, NULL},
@@ -65,6 +66,9 @@ static struct sc_atr_table gemsafe_atrs[] = {
     {"3B:7D:96:00:00:80:31:80:65:B0:83:11:00:C8:83:00:90:00", NULL, NULL, SC_CARD_TYPE_GEMSAFEV1_SEEID, 0, NULL},
     /* European Patent Office epoline card*/
     {"3b:7d:96:00:00:80:31:80:65:b0:83:02:01:f3:83:00:90:00", NULL, NULL, SC_CARD_TYPE_GEMSAFEV1_SEEID, 0, NULL},
+    /* Generic */
+    {"3b:7d:00:00:00:80:31:80:65:b0:00:00:00:00:83:00:90:00",
+     "ff:ff:00:ff:ff:ff:ff:ff:ff:ff:00:00:00:00:ff:00:ff:ff", NULL, SC_CARD_TYPE_GEMSAFEV1_GENERIC, 0, NULL},
     {NULL, NULL, NULL, 0, 0, NULL}
 };
 
